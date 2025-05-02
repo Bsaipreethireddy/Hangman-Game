@@ -1,0 +1,193 @@
+import json
+from datetime import datetime
+
+# Placeholder for fetching real-time stock data
+def get_stock_price(symbol):
+    """
+    Placeholder function to simulate fetching real-time stock data.
+    In a real application, this would make an API call.
+    """
+    # Simulate some fluctuating data
+    if symbol == "AAPL":
+        return 170.50
+    elif symbol == "GOOGL":
+        return 2700.25
+    elif symbol == "MSFT":
+        return 285.75
+    else:
+        return None
+
+def load_portfolio(filename="portfolio.json"):
+    """Loads portfolio data from a JSON file."""
+    try:
+        with open(filename, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        return {}
+
+def save_portfolio(portfolio, filename="portfolio.json"):
+    """Saves portfolio data to a JSON file."""
+    with open(filename, 'w') as f:
+        json.dump(portfolio, f, indent=4)
+
+def add_stock(portfolio):
+    """Adds a stock to the portfolio."""
+    symbol = input("Enter the stock symbol (e.g., AAPL): ").upper()
+    try:
+        quantity = int(input("Enter the quantity: "))
+        purchase_price = float(input("Enter the purchase price per share: "))
+        purchase_date_str = input("Enter the purchase date (YYYY-MM-DD): ")
+        datetime.strptime(purchase_date_str, '%Y-%m-%d') # Validate date format
+        if symbol in portfolio:
+            portfolio[symbol]['quantity'] += quantity
+            portfolio[symbol]['total_cost'] += quantity * purchase_price
+            portfolio[symbol]['average_price'] = portfolio[symbol]['total_cost'] / portfolio[symbol]['quantity']
+            portfolio[symbol]['transactions'].append({
+                'type': 'buy',
+                'quantity': quantity,
+                'price': purchase_price,
+                'date': purchase_date_str
+            })
+        else:
+            portfolio[symbol] = {
+                'quantity': quantity,
+                'average_price': purchase_price,
+                'total_cost': quantity * purchase_price,
+                'transactions': [{
+                    'type': 'buy',
+                    'quantity': quantity,
+                    'price': purchase_price,
+                    'date': purchase_date_str
+                }]
+            }
+        print(f"{quantity} shares of {symbol} added to the portfolio.")
+    except ValueError:
+        print("Invalid input. Please enter numbers for quantity and price, and the date in YYYY-MM-DD format.")
+    except KeyError:
+        print("Invalid date format.")
+
+def remove_stock(portfolio):
+    """Removes a stock or reduces its quantity from the portfolio."""
+    symbol = input("Enter the stock symbol to remove: ").upper()
+    if symbol in portfolio:
+        try:
+            quantity_to_remove = int(input(f"Enter the quantity to remove (currently {portfolio[symbol]['quantity']}): "))
+            if quantity_to_remove > portfolio[symbol]['quantity']:
+                print("Quantity to remove exceeds the current holdings.")
+            elif quantity_to_remove == portfolio[symbol]['quantity']:
+                del portfolio[symbol]
+                print(f"All shares of {symbol} removed from the portfolio.")
+            else:
+                sale_price = float(input("Enter the selling price per share: "))
+                sale_date_str = input("Enter the sale date (YYYY-MM-DD): ")
+                datetime.strptime(sale_date_str, '%Y-%m-%d') # Validate date format
+
+                portfolio[symbol]['quantity'] -= quantity_to_remove
+                portfolio[symbol]['total_cost'] -= quantity_to_remove * portfolio[symbol]['average_price'] # Estimate cost basis
+                if portfolio[symbol]['quantity'] > 0:
+                    portfolio[symbol]['average_price'] = portfolio[symbol]['total_cost'] / portfolio[symbol]['quantity']
+                else:
+                    del portfolio[symbol]
+
+                portfolio[symbol].setdefault('transactions', []).append({
+                    'type': 'sell',
+                    'quantity': quantity_to_remove,
+                    'price': sale_price,
+                    'date': sale_date_str
+                })
+                print(f"{quantity_to_remove} shares of {symbol} sold.")
+        except ValueError:
+            print("Invalid input. Please enter a number for quantity and price.")
+        except KeyError:
+            print("Invalid date format.")
+    else:
+        print(f"Stock {symbol} not found in the portfolio.")
+
+def track_performance(portfolio):
+    """Tracks the performance of the portfolio."""
+    if not portfolio:
+        print("Your portfolio is empty.")
+        return
+
+    total_value = 0
+    total_cost_basis = 0
+
+    print("\n--- Portfolio Performance ---")
+    for symbol, holdings in portfolio.items():
+        current_price = get_stock_price(symbol)
+        if current_price is not None:
+            quantity = holdings['quantity']
+            average_price = holdings['average_price']
+            total_cost = holdings['total_cost']
+            current_value = quantity * current_price
+            gain_loss = current_value - total_cost
+            gain_loss_percent = (gain_loss / total_cost) * 100 if total_cost else 0
+
+            total_value += current_value
+            total_cost_basis += total_cost
+
+            print(f"Symbol: {symbol}")
+            print(f"  Quantity: {quantity}")
+            print(f"  Average Purchase Price: ${average_price:.2f}")
+            print(f"  Current Price: ${current_price:.2f}")
+            print(f"  Current Value: ${current_value:.2f}")
+            print(f"  Gain/Loss: ${gain_loss:.2f} ({gain_loss_percent:.2f}%)")
+            print("-" * 20)
+        else:
+            print(f"Could not fetch real-time data for {symbol}.")
+
+    portfolio_gain_loss = total_value - total_cost_basis
+    portfolio_gain_loss_percent = (portfolio_gain_loss / total_cost_basis) * 100 if total_cost_basis else 0
+
+    print("\n--- Portfolio Summary ---")
+    print(f"Total Portfolio Value: ${total_value:.2f}")
+    print(f"Total Cost Basis: ${total_cost_basis:.2f}")
+    print(f"Overall Gain/Loss: ${portfolio_gain_loss:.2f} ({portfolio_gain_loss_percent:.2f}%)")
+
+def display_portfolio(portfolio):
+    """Displays the current holdings in the portfolio."""
+    if not portfolio:
+        print("Your portfolio is empty.")
+        return
+
+    print("\n--- Current Portfolio ---")
+    for symbol, holdings in portfolio.items():
+        print(f"Symbol: {symbol}, Quantity: {holdings['quantity']}, Average Price: ${holdings['average_price']:.2f}")
+    print("-" * 20)
+
+def main():
+    """Main function to run the stock portfolio tracker."""
+    portfolio = load_portfolio()
+
+    while True:
+        print("\nStock Portfolio Tracker")
+        print("1. Add Stock")
+        print("2. Remove Stock")
+        print("3. Track Performance")
+        print("4. Display Portfolio")
+        print("5. Save Portfolio")
+        print("6. Exit")
+
+        choice = input("Enter your choice: ")
+
+        if choice == '1':
+            add_stock(portfolio)
+        elif choice == '2':
+            remove_stock(portfolio)
+        elif choice == '3':
+            track_performance(portfolio)
+        elif choice == '4':
+            display_portfolio(portfolio)
+        elif choice == '5':
+            save_portfolio(portfolio)
+            print("Portfolio saved.")
+        elif choice == '6':
+            print("Exiting the tracker. Goodbye!")
+            break
+        else:
+            print("Invalid choice. Please try again.")
+
+if __name__ == "__main__":
+    main()
